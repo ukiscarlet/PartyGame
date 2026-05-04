@@ -31,7 +31,7 @@
     - _需求：7.2_
 
 - [ ] 3. 實作遊戲邏輯引擎（`src/game.js`）
-  - [ ] 3.1 實作 `assignRoles(players)` 函式
+  - [x] 3.1 實作 `assignRoles(players)` 函式
     - 依 `Math.max(1, Math.floor(n / 4))` 計算騙子數量，隨機指定騙子與瞎子
     - 回傳 `{ liars: string[], blinds: string[] }`
     - _需求：3.1、3.3_
@@ -40,7 +40,7 @@
     - **屬性 6：騙子數量符合比例規則**
     - **驗證需求：3.1、3.3**
 
-  - [ ] 3.3 實作 `selectQuestion(questionBank, usedQuestions)` 函式
+  - [x] 3.3 實作 `selectQuestion(questionBank, usedQuestions)` 函式
     - 從題庫中隨機選取未使用的題目，若全部已用則回傳 `null`
     - _需求：3.2、7.3、7.4_
 
@@ -48,7 +48,7 @@
     - **屬性 7：題目選取不重複**
     - **驗證需求：3.2、7.3**
 
-  - [ ] 3.5 實作 `assignPrompts(blindPlayers, prompts)` 函式
+  - [x] 3.5 實作 `assignPrompts(blindPlayers, prompts)` 函式
     - 循環分配提示詞，確保每位瞎子都獲得一個提示詞
     - 回傳 `Map<playerId, prompt>`
     - _需求：3.4、3.5_
@@ -57,7 +57,7 @@
     - **屬性 8：提示詞分配覆蓋所有瞎子（含循環）**
     - **驗證需求：3.4、3.5_**
 
-  - [ ] 3.7 實作 `calculateScores(votes, liars, answerGuesses, liarGuesses)` 函式
+  - [x] 3.7 實作 `calculateScores(votes, liars, answerGuesses, liarGuesses)` 函式
     - 投票目標為騙子的瞎子得 1 分
     - 騙子的預想答案與任一瞎子猜測完全相符時，該騙子得 1 分（字串完全比對）
     - 回傳 `Map<playerId, scoreDelta>`
@@ -71,7 +71,7 @@
     - **屬性 15：猜答計分正確性（字串完全相符）**
     - **驗證需求：6.5**
 
-  - [ ] 3.10 實作 `canStartGame(playerCount)` 函式
+  - [x] 3.10 實作 `canStartGame(playerCount)` 函式
     - 玩家人數 ≥ 2 時回傳 `true`，否則回傳 `false`
     - _需求：2.5_
 
@@ -79,7 +79,7 @@
     - **屬性 5：玩家人數不足時無法開始遊戲**
     - **驗證需求：2.5**
 
-  - [ ] 3.12 實作 `advanceSpeaker(speakerIndex, speakerOrder)` 函式
+  - [x] 3.12 實作 `advanceSpeaker(speakerIndex, speakerOrder)` 函式
     - 回傳下一個 `speakerIndex`；若已到最後一位，回傳 `null`（表示應轉換至 VOTE）
     - _需求：4.4、4.5_
 
@@ -87,7 +87,7 @@
     - **屬性 11：發言索引單調遞增**
     - **驗證需求：4.4、4.5**
 
-  - [ ] 3.14 實作 `getVoteOptions(players, selfId)` 函式
+  - [x] 3.14 實作 `getVoteOptions(players, selfId)` 函式
     - 從玩家列表中排除自己，回傳可投票的玩家陣列
     - _需求：5.3_
 
@@ -95,11 +95,11 @@
     - **屬性 12：投票選項排除自己**
     - **驗證需求：5.3**
 
-- [ ] 4. 檢查點 — 確認所有測試通過
+- [x] 4. 檢查點 — 確認所有測試通過
   - 確認所有測試通過，如有問題請向使用者提問。
 
 - [ ] 5. 實作 Firebase 服務層（`src/firebase.js`）
-  - [ ] 5.1 實作房間管理函式
+  - [x] 5.1 實作房間管理函式
     - `createRoom(playerName)`：建立房間、產生唯一 roomId、設定 hostId、寫入玩家資料，回傳 `{ roomId, playerId }`
     - `joinRoom(roomId, playerName)`：驗證房間存在，寫入玩家資料，回傳 `{ playerId }`；房間不存在時拋出 `RoomNotFoundError`
     - `leaveRoom(roomId, playerId)`：移除玩家資料，若為主持人則將房間 state 設為 `ENDED`
@@ -117,14 +117,14 @@
     - **屬性 3：加入房間後玩家資料存在於 Firebase**
     - **驗證需求：1.2、1.4**
 
-  - [ ] 5.5 實作狀態監聽函式
+  - [x] 5.5 實作狀態監聽函式
     - `onRoomStateChange(roomId, callback)`
     - `onPlayersChange(roomId, callback)`
     - `onRoundDataChange(roomId, callback)`
     - 每個函式回傳 `unsubscribe()` 取消監聽
     - _需求：8.1、8.2_
 
-  - [ ] 5.6 實作遊戲操作函式
+  - [x] 5.6 實作遊戲操作函式
     - `setRoomState(roomId, state)`
     - `writeRoundData(roomId, roundData)`
     - `submitVote(roomId, playerId, targetId)`：若已提交則忽略（冪等性）
@@ -142,11 +142,11 @@
     - **驗證需求：1.1**
 
 - [ ] 6. 實作 UI 控制器（`src/ui.js`）
-  - [ ] 6.1 實作畫面切換輔助函式
+  - [x] 6.1 實作畫面切換輔助函式
     - `showScreen(screenId)`：隱藏所有畫面 div，顯示指定畫面
     - _需求：8.2_
 
-  - [ ] 6.2 實作 `renderWaiting(roomId, players, isHost)`
+  - [x] 6.2 實作 `renderWaiting(roomId, players, isHost)`
     - 顯示房間 ID、玩家列表
     - 僅當 `isHost` 為 `true` 時顯示「開始遊戲」按鈕
     - 玩家人數 < 2 時禁用「開始遊戲」按鈕並顯示提示
@@ -156,7 +156,7 @@
     - **屬性 10：主持人專屬按鈕控制（WAITING）**
     - **驗證需求：2.3**
 
-  - [ ] 6.4 實作 `renderAssign(role, content)`
+  - [x] 6.4 實作 `renderAssign(role, content)`
     - 騙子顯示答案，瞎子顯示提示詞，兩者不互相洩漏
     - _需求：3.7_
 
@@ -164,7 +164,7 @@
     - **屬性 9：角色資訊隔離**
     - **驗證需求：3.7**
 
-  - [ ] 6.6 實作 `renderSpeak(currentSpeaker, selfRole, selfContent, isHost)`
+  - [x] 6.6 實作 `renderSpeak(currentSpeaker, selfRole, selfContent, isHost)`
     - 顯示目前發言玩家名稱與自己的角色資訊
     - 僅當 `isHost` 為 `true` 時顯示「下一位」按鈕
     - _需求：4.1、4.2、4.3_
@@ -173,12 +173,12 @@
     - **屬性 10：主持人專屬按鈕控制（SPEAK）**
     - **驗證需求：4.3**
 
-  - [ ] 6.8 實作 `renderVote(players, selfRole, selfId)`
+  - [x] 6.8 實作 `renderVote(players, selfRole, selfId)`
     - 瞎子顯示投票 radio button 列表（排除自己）與猜測答案輸入欄
     - 騙子顯示預想答案輸入欄
     - _需求：5.1、5.2、5.3、5.4_
 
-  - [ ] 6.9 實作 `renderResult(resultData, scores, isHost)`
+  - [x] 6.9 實作 `renderResult(resultData, scores, isHost)`
     - 顯示騙子身份、每位玩家投票對象、猜答結果、累計分數
     - 僅當 `isHost` 為 `true` 時顯示「下一局」按鈕
     - _需求：6.1、6.2、6.6、6.7、6.8_
@@ -187,48 +187,48 @@
     - **屬性 10：主持人專屬按鈕控制（RESULT）**
     - **驗證需求：6.8**
 
-- [ ] 7. 檢查點 — 確認所有測試通過
+- [x] 7. 檢查點 — 確認所有測試通過
   - 確認所有測試通過，如有問題請向使用者提問。
 
 - [ ] 8. 整合串接（`src/main.js`）
-  - [ ] 8.1 實作首頁邏輯（`#screen-home`）
+  - [-] 8.1 實作首頁邏輯（`#screen-home`）
     - 建立房間：呼叫 `createRoom`，將 session 存入 `sessionStorage`，切換至等待大廳
     - 加入房間：呼叫 `joinRoom`，處理 `RoomNotFoundError` 並顯示錯誤訊息
     - _需求：1.1、1.2、1.3_
 
-  - [ ] 8.2 實作狀態機監聽與畫面路由
+  - [-] 8.2 實作狀態機監聽與畫面路由
     - 訂閱 `onRoomStateChange`，依 state 值呼叫對應 `renderXxx` 函式並切換畫面
     - 處理 `ENDED` 狀態：顯示主持人離開提示，返回首頁
     - _需求：1.6、8.2_
 
-  - [ ] 8.3 實作 WAITING 階段互動
+  - [-] 8.3 實作 WAITING 階段互動
     - 訂閱 `onPlayersChange`，即時更新玩家列表
     - 主持人按下「開始遊戲」：呼叫 `assignRoles`、`selectQuestion`、`assignPrompts`，將結果寫入 Firebase，再呼叫 `setRoomState(roomId, 'ASSIGN')`
     - 題庫已用盡時顯示提示，禁用「開始遊戲」
     - _需求：2.1、2.2、2.3、2.4、2.5、3.1–3.6、7.4_
 
-  - [ ] 8.4 實作 SPEAK 階段互動
+  - [-] 8.4 實作 SPEAK 階段互動
     - 訂閱 `onRoundDataChange`，依 `speakerIndex` 顯示目前發言玩家
     - 主持人按下「下一位」：呼叫 `advanceSpeaker`，更新 Firebase `speakerIndex`；若回傳 `null` 則呼叫 `setRoomState(roomId, 'VOTE')`
     - _需求：4.1–4.5_
 
-  - [ ] 8.5 實作 VOTE 階段互動
+  - [-] 8.5 實作 VOTE 階段互動
     - 瞎子提交：呼叫 `submitVote` 與 `submitAnswerGuess`
     - 騙子提交：呼叫 `submitLiarGuess`
     - 監聽所有玩家提交完成後，呼叫 `setRoomState(roomId, 'RESULT')`
     - _需求：5.1–5.9_
 
-  - [ ] 8.6 實作 RESULT 階段互動
+  - [-] 8.6 實作 RESULT 階段互動
     - 呼叫 `calculateScores`，批次呼叫 `updateScore` 更新各玩家分數
     - 主持人按下「下一局」：清除 `currentRound`，呼叫 `setRoomState(roomId, 'ASSIGN')`
     - _需求：6.1–6.9_
 
-  - [ ] 8.7 實作離線偵測
+  - [-] 8.7 實作離線偵測
     - 使用 Firebase `onDisconnect` 設定主持人離線時將房間 state 設為 `ENDED`
     - 玩家離線時設定 `connected: false`，UI 顯示連線中斷 Banner
     - _需求：1.6、8.3_
 
-- [ ] 9. 最終檢查點 — 確認所有測試通過
+- [~] 9. 最終檢查點 — 確認所有測試通過
   - 確認所有測試通過，如有問題請向使用者提問。
 
 ## 備註
