@@ -199,3 +199,78 @@ export async function updateScore(roomId, playerId, delta) {
   const currentScore = snapshot.exists() ? snapshot.val() : 0;
   await set(scoreRef, currentScore + delta);
 }
+
+/**
+ * 更新發言索引。
+ * 需求：4.4
+ * @param {string} roomId
+ * @param {number} newIndex
+ * @returns {Promise<void>}
+ */
+export async function updateSpeakerIndex(roomId, newIndex) {
+  const indexRef = ref(db, `rooms/${roomId}/currentRound/speakerIndex`);
+  await set(indexRef, newIndex);
+}
+
+
+/**
+ * 取得房間的主持人 ID。
+ * @param {string} roomId
+ * @returns {Promise<string|null>}
+ */
+export async function getHostId(roomId) {
+  const hostIdRef = ref(db, `rooms/${roomId}/hostId`);
+  const snapshot = await get(hostIdRef);
+  return snapshot.exists() ? snapshot.val() : null;
+}
+
+/**
+ * 取得指定玩家的名稱。
+ * @param {string} roomId
+ * @param {string} playerId
+ * @returns {Promise<string|null>}
+ */
+export async function getPlayerName(roomId, playerId) {
+  const nameRef = ref(db, `rooms/${roomId}/players/${playerId}/name`);
+  const snapshot = await get(nameRef);
+  return snapshot.exists() ? snapshot.val() : null;
+}
+
+
+// ─── 離線偵測 ────────────────────────────────────────────
+
+/**
+ * 設定 Firebase onDisconnect 處理器。
+ * - 主持人離線時將房間 state 設為 ENDED
+ * - 所有玩家離線時設定 connected: false
+ * 需求：1.6、8.3
+ * @param {string} roomId
+ * @param {string} playerId
+ * @param {boolean} isHost
+ */
+export function setupDisconnectHandlers(roomId, playerId, isHost) {
+  // 玩家離線時設定 connected: false
+  const connectedRef = ref(db, `rooms/${roomId}/players/${playerId}/connected`);
+  onDisconnect(connectedRef).set(false);
+
+  // 主持人離線時將房間 state 設為 ENDED
+  if (isHost) {
+    const stateRef = ref(db, `rooms/${roomId}/state`);
+    onDisconnect(stateRef).set('ENDED');
+  }
+}
+
+/**
+ * 監聽 Firebase 連線狀態，回傳取消監聽的函式。
+ * 需求：8.3
+ * @param {function(boolean): void} callback - 連線狀態變更時呼叫，true 表示已連線，false 表示中斷
+ * @returns {function(): void} 取消監聽的函式
+ */
+export function monitorConnection(callback) {
+  const connectedRef = ref(db, '.info/connected');
+  const listener = onValue(connectedRef, (snapshot) => {
+    const isConnected = snapshot.val() === true;
+    callback(isConnected);
+  });
+  return () => off(connectedRef, 'value', listener);
+}

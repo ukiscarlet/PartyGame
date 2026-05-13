@@ -191,44 +191,44 @@
   - 確認所有測試通過，如有問題請向使用者提問。
 
 - [ ] 8. 整合串接（`src/main.js`）
-  - [-] 8.1 實作首頁邏輯（`#screen-home`）
+  - [x] 8.1 實作首頁邏輯（`#screen-home`）
     - 建立房間：呼叫 `createRoom`，將 session 存入 `sessionStorage`，切換至等待大廳
     - 加入房間：呼叫 `joinRoom`，處理 `RoomNotFoundError` 並顯示錯誤訊息
     - _需求：1.1、1.2、1.3_
 
-  - [-] 8.2 實作狀態機監聽與畫面路由
+  - [x] 8.2 實作狀態機監聽與畫面路由
     - 訂閱 `onRoomStateChange`，依 state 值呼叫對應 `renderXxx` 函式並切換畫面
     - 處理 `ENDED` 狀態：顯示主持人離開提示，返回首頁
     - _需求：1.6、8.2_
 
-  - [-] 8.3 實作 WAITING 階段互動
+  - [x] 8.3 實作 WAITING 階段互動
     - 訂閱 `onPlayersChange`，即時更新玩家列表
     - 主持人按下「開始遊戲」：呼叫 `assignRoles`、`selectQuestion`、`assignPrompts`，將結果寫入 Firebase，再呼叫 `setRoomState(roomId, 'ASSIGN')`
     - 題庫已用盡時顯示提示，禁用「開始遊戲」
     - _需求：2.1、2.2、2.3、2.4、2.5、3.1–3.6、7.4_
 
-  - [-] 8.4 實作 SPEAK 階段互動
+  - [x] 8.4 實作 SPEAK 階段互動
     - 訂閱 `onRoundDataChange`，依 `speakerIndex` 顯示目前發言玩家
     - 主持人按下「下一位」：呼叫 `advanceSpeaker`，更新 Firebase `speakerIndex`；若回傳 `null` 則呼叫 `setRoomState(roomId, 'VOTE')`
     - _需求：4.1–4.5_
 
-  - [-] 8.5 實作 VOTE 階段互動
+  - [x] 8.5 實作 VOTE 階段互動
     - 瞎子提交：呼叫 `submitVote` 與 `submitAnswerGuess`
     - 騙子提交：呼叫 `submitLiarGuess`
     - 監聽所有玩家提交完成後，呼叫 `setRoomState(roomId, 'RESULT')`
     - _需求：5.1–5.9_
 
-  - [-] 8.6 實作 RESULT 階段互動
+  - [x] 8.6 實作 RESULT 階段互動
     - 呼叫 `calculateScores`，批次呼叫 `updateScore` 更新各玩家分數
     - 主持人按下「下一局」：清除 `currentRound`，呼叫 `setRoomState(roomId, 'ASSIGN')`
     - _需求：6.1–6.9_
 
-  - [-] 8.7 實作離線偵測
+  - [x] 8.7 實作離線偵測
     - 使用 Firebase `onDisconnect` 設定主持人離線時將房間 state 設為 `ENDED`
     - 玩家離線時設定 `connected: false`，UI 顯示連線中斷 Banner
     - _需求：1.6、8.3_
 
-- [~] 9. 最終檢查點 — 確認所有測試通過
+- [x] 9. 最終檢查點 — 確認所有測試通過
   - 確認所有測試通過，如有問題請向使用者提問。
 
 ## 備註
