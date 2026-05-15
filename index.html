@@ -142,7 +142,9 @@
     <h1>發言階段</h1>
     <p>目前發言：<strong id="speak-current-player"></strong></p>
     <div id="speak-self-info"></div>
-    <button id="btn-next-speaker" style="display:none;">下一位</button>
+    <p id="speak-order-label" style="margin-top:1rem;color:#aaa;">發言順序：</p>
+    <ul id="speak-order-list" style="list-style:none;padding:0;"></ul>
+    <button id="btn-next-speaker" style="display:none;">我說完了，下一位</button>
   </div>
 
   <!-- 投票階段 -->
@@ -160,12 +162,13 @@
       <input type="text" id="input-liar-guess" placeholder="輸入你的預想答案" />
       <button id="btn-submit-liar">提交</button>
     </div>
-    <p id="vote-submitted-msg" class="info-msg" style="display:none;">已提交，等待其他玩家...</p>
+    <p id="vote-submitted-msg" class="info-msg" style="display:none;">已提交，等待其他玩家完成投票...</p>
   </div>
 
   <!-- 結算畫面 -->
   <div id="screen-result" class="screen">
     <h1>結算</h1>
+    <p id="result-round-info" class="info-msg"></p>
     <div id="result-liars"></div>
     <div id="result-votes"></div>
     <div id="result-guesses"></div>

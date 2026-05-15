@@ -20,6 +20,8 @@ let unsubscribeResultRoundData = null;
 let unsubscribeResultPlayers = null;
 let unsubscribeConnection = null;
 let usedQuestions = [];
+let currentRoundNumber = 0;
+const MAX_ROUNDS = 3;
 
 async function init() {
   initFirebase();
@@ -317,6 +319,7 @@ function setupStartGameButton(roomId, getPlayers) {
 
     // Track used questions locally
     usedQuestions = [...usedQuestions, question.answer];
+    currentRoundNumber = 1;
 
     // Write round data to Firebase
     await writeRoundData(roomId, roundData);
@@ -335,10 +338,11 @@ function setupStartGameButton(roomId, getPlayers) {
  */
 function setupAssignPhase(roomId) {
   const session = getSession();
+  let hasTransitioned = false;
 
   // Subscribe to round data to get role and content
   const unsubAssign = onRoundDataChange(roomId, async (roundData) => {
-    if (!roundData) return;
+    if (!roundData || hasTransitioned) return;
 
     const { roles, prompts, answer } = roundData;
     if (!roles) return;
@@ -354,12 +358,14 @@ function setupAssignPhase(roomId) {
     renderAssign(selfRole, content);
 
     // Unsubscribe after rendering
+    hasTransitioned = true;
     if (unsubAssign) unsubAssign();
 
     // Auto-transition to SPEAK after a short delay (let players read their role)
     const hostId = await getHostId(roomId);
     if (session.playerId === hostId) {
       setTimeout(async () => {
+        // Only transition if still in ASSIGN state
         await setRoomState(roomId, 'SPEAK');
       }, 3000);
     }
@@ -380,15 +386,16 @@ function cleanupSpeakSubscription() {
 
 /**
  * Set up the SPEAK phase: subscribe to round data changes and wire up the next speaker button.
+ * Each player sees the "下一位" button only when it's their turn to speak.
  * Requirements: 4.1, 4.2, 4.3, 4.4, 4.5
  * @param {string} roomId
  */
 function setupSpeakPhase(roomId) {
   const session = getSession();
-  let hostId = null;
-  let pendingRoundData = null;
 
-  function processRoundData(roundData) {
+  // Subscribe to round data changes to get speakerIndex updates
+  unsubscribeRoundData = onRoundDataChange(roomId, (roundData) => {
+    if (!roundData) return;
     const { speakerIndex, speakerOrder, roles, prompts, answer } = roundData;
 
     // Determine current speaker from speakerOrder
@@ -403,28 +410,10 @@ function setupSpeakPhase(roomId) {
       selfContent = (prompts && prompts[session.playerId]) || '';
     }
 
-    const isHost = session.playerId === hostId;
+    // Show "下一位" button only to the current speaker (not just host)
+    const isCurrentSpeaker = session.playerId === currentSpeakerId;
 
-    renderSpeakWithPlayerName(roomId, currentSpeakerId, selfRole, selfContent, isHost, speakerIndex, speakerOrder);
-  }
-
-  // Fetch hostId to determine if current player is host
-  getHostId(roomId).then((fetchedHostId) => {
-    hostId = fetchedHostId;
-    // If round data arrived before hostId resolved, render now
-    if (pendingRoundData) {
-      processRoundData(pendingRoundData);
-    }
-  });
-
-  // Subscribe to round data changes to get speakerIndex updates
-  unsubscribeRoundData = onRoundDataChange(roomId, (roundData) => {
-    if (!roundData) return;
-    pendingRoundData = roundData;
-    // Only process if hostId is already resolved
-    if (hostId !== null) {
-      processRoundData(roundData);
-    }
+    renderSpeakWithPlayerName(roomId, currentSpeakerId, selfRole, selfContent, isCurrentSpeaker, speakerIndex, speakerOrder);
   });
 }
 
@@ -434,15 +423,31 @@ function setupSpeakPhase(roomId) {
  * @param {string} speakerId - Current speaker's player ID
  * @param {string} selfRole
  * @param {string} selfContent
- * @param {boolean} isHost
+ * @param {boolean} isCurrentSpeaker - Whether the current user is the one speaking
  * @param {number} speakerIndex
  * @param {string[]} speakerOrder
  */
-async function renderSpeakWithPlayerName(roomId, speakerId, selfRole, selfContent, isHost, speakerIndex, speakerOrder) {
-  // Resolve speaker name from Firebase players data
-  const speakerName = await getPlayerName(roomId, speakerId) || speakerId;
+async function renderSpeakWithPlayerName(roomId, speakerId, selfRole, selfContent, isCurrentSpeaker, speakerIndex, speakerOrder) {
+  // Resolve all speaker names for the order list
+  const speakerNames = await Promise.all(
+    speakerOrder.map(id => getPlayerName(roomId, id).then(name => name || id))
+  );
 
-  renderSpeak(speakerName, selfRole, selfContent, isHost);
+  const currentSpeakerName = speakerNames[speakerIndex] || speakerId;
+
+  renderSpeak(currentSpeakerName, selfRole, selfContent, isCurrentSpeaker);
+
+  // Render speaker order list
+  const orderList = document.getElementById('speak-order-list');
+  if (orderList) {
+    orderList.innerHTML = speakerNames.map((name, i) => {
+      let style = '';
+      if (i < speakerIndex) style = 'color:#666;text-decoration:line-through;';
+      else if (i === speakerIndex) style = 'color:#e94560;font-weight:bold;';
+      else style = 'color:#aaa;';
+      return `<li style="${style}">${i + 1}. ${name}${i === speakerIndex ? ' ← 發言中' : ''}</li>`;
+    }).join('');
+  }
 
   // Set up the "下一位" button click handler
   setupNextSpeakerButton(roomId, speakerIndex, speakerOrder);
@@ -463,7 +468,12 @@ function setupNextSpeakerButton(roomId, speakerIndex, speakerOrder) {
   const newBtn = nextBtn.cloneNode(true);
   nextBtn.parentNode.replaceChild(newBtn, nextBtn);
 
+  let clicked = false;
   newBtn.addEventListener('click', async () => {
+    if (clicked) return;
+    clicked = true;
+    newBtn.disabled = true;
+
     const nextIndex = advanceSpeaker(speakerIndex, speakerOrder);
     if (nextIndex === null) {
       // All players have spoken, advance to VOTE
@@ -471,6 +481,8 @@ function setupNextSpeakerButton(roomId, speakerIndex, speakerOrder) {
     } else {
       // Update speakerIndex in Firebase
       await updateSpeakerIndex(roomId, nextIndex);
+      clicked = false;
+      newBtn.disabled = false;
     }
   });
 }
@@ -499,10 +511,42 @@ function cleanupVoteSubscription() {
 function setupVotePhase(roomId) {
   const session = getSession();
   let currentPlayers = [];
-  let selfRole = 'blind';
+  let selfRole = null;
   let hasSubmitted = false;
   let hasRendered = false;
+  let hasTransitioned = false;
   let totalPlayerCount = 0;
+  let hostId = null;
+  let latestRoundData = null;
+
+  // Fetch hostId - only host triggers state transition
+  getHostId(roomId).then((fetchedHostId) => {
+    hostId = fetchedHostId;
+    tryRender();
+    tryCheckCompletion();
+  });
+
+  function tryRender() {
+    if (hasRendered || hasSubmitted) return;
+    if (!selfRole || currentPlayers.length === 0) return;
+
+    hasRendered = true;
+    renderVote(currentPlayers, selfRole, session.playerId);
+    setupVoteSubmitButtons(roomId, session.playerId, selfRole, () => {
+      hasSubmitted = true;
+    });
+  }
+
+  function tryCheckCompletion() {
+    if (hasTransitioned || !latestRoundData || !hostId) return;
+    if (session.playerId !== hostId) return;
+    if (totalPlayerCount === 0) return;
+
+    const { roles, votes, liarGuesses } = latestRoundData;
+    checkAllVotesSubmitted(roomId, roles, votes, liarGuesses, totalPlayerCount, () => {
+      hasTransitioned = true;
+    });
+  }
 
   // Subscribe to players to get the player list for rendering
   unsubscribeVotePlayers = onPlayersChange(roomId, (playersData) => {
@@ -512,39 +556,24 @@ function setupVotePhase(roomId) {
       name: data.name,
     }));
     totalPlayerCount = currentPlayers.length;
-
-    // Render vote UI once we have players and role info
-    if (!hasRendered && !hasSubmitted && selfRole) {
-      hasRendered = true;
-      renderVote(currentPlayers, selfRole, session.playerId);
-      setupVoteSubmitButtons(roomId, session.playerId, selfRole, () => {
-        hasSubmitted = true;
-      });
-    }
+    tryRender();
+    tryCheckCompletion();
   });
 
   // Subscribe to round data to get role info and monitor vote completion
   unsubscribeVoteRoundData = onRoundDataChange(roomId, (roundData) => {
     if (!roundData) return;
+    latestRoundData = roundData;
 
-    const { roles, votes, liarGuesses } = roundData;
+    const { roles } = roundData;
 
-    // Determine self role
-    selfRole = (roles && roles[session.playerId]) || 'blind';
-
-    // Render vote UI only once (first time we have both players and role)
-    if (!hasRendered && !hasSubmitted && currentPlayers.length > 0) {
-      hasRendered = true;
-      renderVote(currentPlayers, selfRole, session.playerId);
-      setupVoteSubmitButtons(roomId, session.playerId, selfRole, () => {
-        hasSubmitted = true;
-      });
+    // Determine self role from round data
+    if (roles && roles[session.playerId]) {
+      selfRole = roles[session.playerId];
     }
 
-    // Check if all players have submitted
-    if (totalPlayerCount > 0) {
-      checkAllVotesSubmitted(roomId, roles, votes, liarGuesses, totalPlayerCount);
-    }
+    tryRender();
+    tryCheckCompletion();
   });
 }
 
@@ -625,8 +654,9 @@ function setupVoteSubmitButtons(roomId, playerId, selfRole, onSubmitted) {
  * @param {Object|undefined} votes - { playerId: targetId }
  * @param {Object|undefined} liarGuesses - { playerId: guess }
  * @param {number} totalPlayerCount
+ * @param {Function} onTransition - Called when transition is triggered
  */
-function checkAllVotesSubmitted(roomId, roles, votes, liarGuesses, totalPlayerCount) {
+function checkAllVotesSubmitted(roomId, roles, votes, liarGuesses, totalPlayerCount, onTransition) {
   if (!roles) return;
 
   // Count how many blinds and liars there are
@@ -647,6 +677,7 @@ function checkAllVotesSubmitted(roomId, roles, votes, liarGuesses, totalPlayerCo
 
   // If all players have submitted, transition to RESULT
   if (allBlindsVoted && allLiarsGuessed) {
+    onTransition();
     setRoomState(roomId, 'RESULT');
   }
 }
@@ -771,6 +802,15 @@ function setupResultPhase(roomId) {
 
     renderResult(resultData, scores, isHost);
 
+    // Show round info
+    const roundInfo = document.getElementById('result-round-info');
+    if (roundInfo) {
+      if (currentRoundNumber >= MAX_ROUNDS) {
+        roundInfo.textContent = `第 ${currentRoundNumber}/${MAX_ROUNDS} 局（最後一局）`;
+      } else {
+        roundInfo.textContent = `第 ${currentRoundNumber}/${MAX_ROUNDS} 局`;
+      }
+    }
     // Wire up "下一局" button for host
     setupNextRoundButton(roomId);
   }
@@ -790,6 +830,18 @@ function setupNextRoundButton(roomId) {
   nextRoundBtn.parentNode.replaceChild(newBtn, nextRoundBtn);
 
   newBtn.addEventListener('click', async () => {
+    // Check if max rounds reached
+    if (currentRoundNumber >= MAX_ROUNDS) {
+      alert(`已完成 ${MAX_ROUNDS} 局遊戲！`);
+      // Return to waiting room
+      await setRoomState(roomId, 'WAITING');
+      currentRoundNumber = 0;
+      usedQuestions = [];
+      return;
+    }
+
+    currentRoundNumber++;
+
     // Clear currentRound but preserve usedQuestions for next round
     const roundData = {
       usedQuestions: usedQuestions,

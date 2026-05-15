@@ -133,8 +133,10 @@ describe('monitorConnection', () => {
 
     expect(typeof unsubscribe).toBe('function');
 
-    // Calling unsubscribe should call off
+    // Calling unsubscribe should invoke the function returned by onValue
     unsubscribe();
-    expect(off).toHaveBeenCalled();
+    // The unsubscribe function returned by onValue mock is a vi.fn()
+    const onValueReturnedFn = onValue.mock.results[onValue.mock.results.length - 1].value;
+    expect(onValueReturnedFn).toHaveBeenCalled();
   });
 });

@@ -138,26 +138,26 @@ export async function leaveRoom(roomId, playerId) {
 
 export function onRoomStateChange(roomId, callback) {
   const stateRef = ref(db, `rooms/${roomId}/state`);
-  const listener = onValue(stateRef, (snapshot) => {
+  const unsubscribe = onValue(stateRef, (snapshot) => {
     callback(snapshot.val());
   });
-  return () => off(stateRef, 'value', listener);
+  return unsubscribe;
 }
 
 export function onPlayersChange(roomId, callback) {
   const playersRef = ref(db, `rooms/${roomId}/players`);
-  const listener = onValue(playersRef, (snapshot) => {
+  const unsubscribe = onValue(playersRef, (snapshot) => {
     callback(snapshot.val());
   });
-  return () => off(playersRef, 'value', listener);
+  return unsubscribe;
 }
 
 export function onRoundDataChange(roomId, callback) {
   const roundRef = ref(db, `rooms/${roomId}/currentRound`);
-  const listener = onValue(roundRef, (snapshot) => {
+  const unsubscribe = onValue(roundRef, (snapshot) => {
     callback(snapshot.val());
   });
-  return () => off(roundRef, 'value', listener);
+  return unsubscribe;
 }
 
 // ─── 遊戲操作 ────────────────────────────────────────────
@@ -268,9 +268,9 @@ export function setupDisconnectHandlers(roomId, playerId, isHost) {
  */
 export function monitorConnection(callback) {
   const connectedRef = ref(db, '.info/connected');
-  const listener = onValue(connectedRef, (snapshot) => {
+  const unsubscribe = onValue(connectedRef, (snapshot) => {
     const isConnected = snapshot.val() === true;
     callback(isConnected);
   });
-  return () => off(connectedRef, 'value', listener);
+  return unsubscribe;
 }

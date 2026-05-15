@@ -105,9 +105,9 @@ export function renderAssign(role, content) {
  * @param {string} currentSpeaker - 目前發言玩家名稱
  * @param {'liar'|'blind'} selfRole - 自己的角色
  * @param {string} selfContent - 自己的角色資訊（答案或提示詞）
- * @param {boolean} isHost - 是否為主持人
+ * @param {boolean} isCurrentSpeaker - 是否為目前發言者（顯示「下一位」按鈕）
  */
-export function renderSpeak(currentSpeaker, selfRole, selfContent, isHost) {
+export function renderSpeak(currentSpeaker, selfRole, selfContent, isCurrentSpeaker) {
   const screen = document.getElementById('screen-speak');
 
   // 目前發言玩家
@@ -126,10 +126,10 @@ export function renderSpeak(currentSpeaker, selfRole, selfContent, isHost) {
     }
   }
 
-  // 下一位按鈕：僅主持人可見
+  // 下一位按鈕：僅目前發言者可見
   const nextBtn = screen.querySelector('#btn-next-speaker');
   if (nextBtn) {
-    nextBtn.style.display = isHost ? 'inline-block' : 'none';
+    nextBtn.style.display = isCurrentSpeaker ? 'inline-block' : 'none';
   }
 
   showScreen('screen-speak');
