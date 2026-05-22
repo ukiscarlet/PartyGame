@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>盲人摸象</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .screen {
+      display: none;
+      width: 100%;
+      max-width: 480px;
+      padding: 2rem;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid #555;
+      border-radius: 6px;
+      background: #2a2a3e;
+      color: #eee;
+      font-size: 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    button {
+      padding: 0.6rem 1.2rem;
+      border: none;
+      border-radius: 6px;
+      background: #e94560;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 0.4rem;
+    }
+
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+
+    .error-msg {
+      color: #ff6b6b;
+      font-size: 0.9rem;
+      margin-top: 0.4rem;
+    }
+
+    .info-msg {
+      color: #ffd166;
+      font-size: 0.9rem;
+      margin-top: 0.4rem;
+    }
+
+    #offline-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: #c0392b;
+      color: #fff;
+      text-align: center;
+      padding: 0.5rem;
+      font-size: 0.9rem;
+      z-index: 999;
+    }
+  </style>
+  <script type="module" crossorigin src="/PartyGame/assets/index-CB--fh1C.js"></script>
+</head>
+<body>
+
+  <!-- 離線提示 Banner -->
+  <div id="offline-banner">⚠️ 連線中斷，請檢查網路連線</div>
+
+  <!-- 首頁：建立 / 加入房間 -->
+  <div id="screen-home" class="screen active">
+    <h1>🐘 盲人摸象</h1>
+    <section id="section-create">
+      <h2>建立房間</h2>
+      <input type="text" id="input-create-name" placeholder="輸入你的名稱" />
+      <button id="btn-create-room">建立房間</button>
+    </section>
+    <hr style="margin: 1.5rem 0; border-color: #444;" />
+    <section id="section-join">
+      <h2>加入房間</h2>
+      <input type="text" id="input-join-name" placeholder="輸入你的名稱" />
+      <input type="text" id="input-room-id" placeholder="輸入房間 ID" />
+      <button id="btn-join-room">加入房間</button>
+      <p id="join-error" class="error-msg"></p>
+    </section>
+  </div>
+
+  <!-- 等待大廳 -->
+  <div id="screen-waiting" class="screen">
+    <h1>等待大廳</h1>
+    <p>房間 ID：<strong id="waiting-room-id"></strong></p>
+    <h2>玩家列表</h2>
+    <ul id="waiting-player-list"></ul>
+    <p id="waiting-min-players-msg" class="info-msg"></p>
+    <button id="btn-start-game" style="display:none;">開始遊戲</button>
+  </div>
+
+  <!-- 角色揭示 -->
+  <div id="screen-assign" class="screen">
+    <h1>你的角色</h1>
+    <div id="assign-role-display"></div>
+    <div id="assign-content-display"></div>
+  </div>
+
+  <!-- 發言階段 -->
+  <div id="screen-speak" class="screen">
+    <h1>發言階段</h1>
+    <p>目前發言：<strong id="speak-current-player"></strong></p>
+    <div id="speak-self-info"></div>
+    <p id="speak-order-label" style="margin-top:1rem;color:#aaa;">發言順序：</p>
+    <ul id="speak-order-list" style="list-style:none;padding:0;"></ul>
+    <button id="btn-next-speaker" style="display:none;">我說完了，下一位</button>
+  </div>
+
+  <!-- 投票階段 -->
+  <div id="screen-vote" class="screen">
+    <h1>投票階段</h1>
+    <div id="vote-blind-section" style="display:none;">
+      <h2>你認為誰是騙子？</h2>
+      <div id="vote-options"></div>
+      <h2>你猜本局答案是？</h2>
+      <input type="text" id="input-answer-guess" placeholder="輸入你的猜測" />
+      <button id="btn-submit-blind">提交</button>
+    </div>
+    <div id="vote-liar-section" style="display:none;">
+      <h2>你預測瞎子會猜出什麼答案？</h2>
+      <input type="text" id="input-liar-guess" placeholder="輸入你的預想答案" />
+      <button id="btn-submit-liar">提交</button>
+    </div>
+    <p id="vote-submitted-msg" class="info-msg" style="display:none;">已提交，等待其他玩家完成投票...</p>
+  </div>
+
+  <!-- 結算畫面 -->
+  <div id="screen-result" class="screen">
+    <h1>結算</h1>
+    <p id="result-round-info" class="info-msg"></p>
+    <div id="result-liars"></div>
+    <div id="result-votes"></div>
+    <div id="result-guesses"></div>
+    <div id="result-scores"></div>
+    <button id="btn-next-round" style="display:none;">下一局</button>
+  </div>
+
+</body>
+</html>
