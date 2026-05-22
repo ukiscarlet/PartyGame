@@ -27,7 +27,7 @@ const MAX_ROUNDS = 3;
 async function init() {
   initFirebase();
   try {
-    questionBank = await loadQuestions('/questions.json');
+    questionBank = await loadQuestions(`${import.meta.env.BASE_URL}questions.json`);
   } catch (err) {
     console.error('題庫載入失敗：', err);
   }
