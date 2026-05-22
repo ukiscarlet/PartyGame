@@ -38,7 +38,7 @@ vi.mock('firebase/database', () => {
 const mockOnValueCallbacks = [];
 
 import { onDisconnect, ref, onValue, off } from 'firebase/database';
-import { setupDisconnectHandlers, monitorConnection, initFirebase } from '../firebase.js';
+import { setupDisconnectHandlers, monitorConnection, initFirebase } from '../../roomService.js';
 
 beforeEach(() => {
   vi.clearAllMocks();

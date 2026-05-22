@@ -5,7 +5,8 @@
  * Requirements: 1.1-1.6, 2.1-2.5, 3.1-3.6, 7.4, 8.1, 8.2
  */
 
-import { initFirebase, createRoom, joinRoom, RoomNotFoundError, onRoomStateChange, onPlayersChange, onRoundDataChange, setRoomState, writeRoundData, updateSpeakerIndex, getHostId, getPlayerName, submitVote, submitAnswerGuess, submitLiarGuess, updateScore, setupDisconnectHandlers, monitorConnection } from './firebase.js';
+import { initFirebase, createRoom, joinRoom, RoomNotFoundError, onRoomStateChange, onPlayersChange, setRoomState, getHostId, getPlayerName, getPlayersData, setupDisconnectHandlers, monitorConnection } from '../roomService.js';
+import { onRoundDataChange, writeRoundData, updateSpeakerIndex, submitVote, submitAnswerGuess, submitLiarGuess, updateScore, BLIND_MEN_PLAYER_DEFAULTS } from './firebase.js';
 import { showScreen, renderWaiting, renderAssign, renderSpeak, renderVote, renderResult } from './ui.js';
 import { loadQuestions } from './questionBank.js';
 import { assignRoles, selectQuestion, assignPrompts, canStartGame, advanceSpeaker, calculateScores } from './game.js';
@@ -49,7 +50,7 @@ async function handleCreateRoom() {
   const playerName = nameInput ? nameInput.value.trim() : '';
   if (!playerName) return;
   try {
-    const { roomId, playerId } = await createRoom(playerName);
+    const { roomId, playerId } = await createRoom(playerName, BLIND_MEN_PLAYER_DEFAULTS);
     saveSession(roomId, playerId, playerName);
     setupDisconnectHandlers(roomId, playerId, true);
     startConnectionMonitor();
@@ -68,7 +69,7 @@ async function handleJoinRoom() {
   if (!playerName || !roomId) return;
   if (errorEl) errorEl.textContent = '';
   try {
-    const { playerId } = await joinRoom(roomId, playerName);
+    const { playerId } = await joinRoom(roomId, playerName, BLIND_MEN_PLAYER_DEFAULTS);
     saveSession(roomId, playerId, playerName);
     setupDisconnectHandlers(roomId, playerId, false);
     startConnectionMonitor();
@@ -842,13 +843,51 @@ function setupNextRoundButton(roomId) {
 
     currentRoundNumber++;
 
-    // Clear currentRound but preserve usedQuestions for next round
-    const roundData = {
-      usedQuestions: usedQuestions,
-    };
-    await writeRoundData(roomId, roundData);
+    // Fetch current players
+    const playersData = await getPlayersData(roomId);
+    if (!playersData) return;
 
-    // Transition back to ASSIGN to start a new round
+    const playerIds = Object.keys(playersData);
+
+    // Select a new question
+    const question = selectQuestion(questionBank, usedQuestions);
+    if (question === null) {
+      alert('題庫已用盡！');
+      await setRoomState(roomId, 'WAITING');
+      return;
+    }
+
+    // Assign roles
+    const { liars, blinds } = assignRoles(playerIds);
+
+    // Assign prompts
+    const promptsMap = assignPrompts(blinds, question.prompts);
+    const promptsObj = {};
+    promptsMap.forEach((prompt, playerId) => {
+      promptsObj[playerId] = prompt;
+    });
+
+    const roles = {};
+    liars.forEach(id => { roles[id] = 'liar'; });
+    blinds.forEach(id => { roles[id] = 'blind'; });
+
+    // Build speaker order
+    const speakerOrder = [...playerIds].sort(() => Math.random() - 0.5);
+
+    // Track used questions
+    usedQuestions = [...usedQuestions, question.answer];
+
+    const roundData = {
+      answer: question.answer,
+      usedQuestions,
+      prompts: promptsObj,
+      roles,
+      speakerIndex: 0,
+      speakerOrder,
+    };
+
+    // Write new round data and transition to ASSIGN
+    await writeRoundData(roomId, roundData);
     await setRoomState(roomId, 'ASSIGN');
   });
 }

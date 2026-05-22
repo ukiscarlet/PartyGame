@@ -1,14 +1,13 @@
 /**
- * src/__tests__/main.test.js
- *
  * Unit tests for state machine listener and screen routing (Task 8.2).
  * Requirements: 1.6, 8.2
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// Mock firebase.js
-vi.mock('../firebase.js', () => {
-  let stateCallback = null;
+let stateCallback = null;
+
+// Mock roomService (path relative to THIS test file)
+vi.mock('../../roomService.js', () => {
   return {
     initFirebase: vi.fn(),
     createRoom: vi.fn(),
@@ -24,23 +23,31 @@ vi.mock('../firebase.js', () => {
       return vi.fn(); // unsubscribe
     }),
     onPlayersChange: vi.fn((roomId, callback) => {
-      return vi.fn(); // unsubscribe
-    }),
-    onRoundDataChange: vi.fn((roomId, callback) => {
-      return vi.fn(); // unsubscribe
+      return vi.fn();
     }),
     setRoomState: vi.fn(() => Promise.resolve(undefined)),
-    writeRoundData: vi.fn(() => Promise.resolve(undefined)),
-    updateSpeakerIndex: vi.fn(() => Promise.resolve(undefined)),
     getHostId: vi.fn(() => Promise.resolve(null)),
     getPlayerName: vi.fn(() => Promise.resolve('TestPlayer')),
-    db: {},
-    __triggerStateChange: (state) => {
-      if (stateCallback) stateCallback(state);
-    },
-    __getStateCallback: () => stateCallback,
+    getPlayersData: vi.fn(() => Promise.resolve(null)),
+    setupDisconnectHandlers: vi.fn(),
+    monitorConnection: vi.fn(() => vi.fn()),
+    getDb: vi.fn(() => ({})),
   };
 });
+
+// Mock blindMen firebase (path relative to THIS test file)
+vi.mock('../firebase.js', () => ({
+  onRoundDataChange: vi.fn((roomId, callback) => {
+    return vi.fn();
+  }),
+  writeRoundData: vi.fn(() => Promise.resolve(undefined)),
+  updateSpeakerIndex: vi.fn(() => Promise.resolve(undefined)),
+  submitVote: vi.fn(() => Promise.resolve(undefined)),
+  submitAnswerGuess: vi.fn(() => Promise.resolve(undefined)),
+  submitLiarGuess: vi.fn(() => Promise.resolve(undefined)),
+  updateScore: vi.fn(() => Promise.resolve(undefined)),
+  BLIND_MEN_PLAYER_DEFAULTS: { score: 0, role: null },
+}));
 
 // Mock questionBank.js
 vi.mock('../questionBank.js', () => ({
@@ -54,13 +61,12 @@ vi.mock('../game.js', () => ({
   assignPrompts: vi.fn(() => new Map()),
   canStartGame: vi.fn(() => false),
   advanceSpeaker: vi.fn(() => null),
+  calculateScores: vi.fn(() => new Map()),
 }));
 
 describe('State Machine Routing (Task 8.2)', () => {
-  let showScreenMock;
-
   beforeEach(() => {
-    // Set up DOM with all screen divs
+    stateCallback = null;
     document.body.innerHTML = `
       <div id="screen-home" class="screen active" style="display:block;"></div>
       <div id="screen-waiting" class="screen" style="display:none;">
@@ -69,14 +75,29 @@ describe('State Machine Routing (Task 8.2)', () => {
         <p id="waiting-min-players-msg" class="info-msg"></p>
         <button id="btn-start-game" style="display:none;">開始遊戲</button>
       </div>
-      <div id="screen-assign" class="screen" style="display:none;"></div>
+      <div id="screen-assign" class="screen" style="display:none;">
+        <div id="assign-role-display"></div>
+        <div id="assign-content-display"></div>
+      </div>
       <div id="screen-speak" class="screen" style="display:none;">
         <strong id="speak-current-player"></strong>
         <div id="speak-self-info"></div>
+        <ul id="speak-order-list"></ul>
         <button id="btn-next-speaker" style="display:none;">下一位</button>
       </div>
-      <div id="screen-vote" class="screen" style="display:none;"></div>
-      <div id="screen-result" class="screen" style="display:none;"></div>
+      <div id="screen-vote" class="screen" style="display:none;">
+        <div id="vote-blind-section" style="display:none;"></div>
+        <div id="vote-liar-section" style="display:none;"></div>
+        <p id="vote-submitted-msg" style="display:none;"></p>
+      </div>
+      <div id="screen-result" class="screen" style="display:none;">
+        <div id="result-liars"></div>
+        <div id="result-votes"></div>
+        <div id="result-guesses"></div>
+        <div id="result-scores"></div>
+        <button id="btn-next-round" style="display:none;">下一局</button>
+      </div>
+      <div id="offline-banner" style="display:none;"></div>
       <button id="btn-create-room"></button>
       <button id="btn-join-room"></button>
       <input id="input-create-name" />
@@ -91,96 +112,80 @@ describe('State Machine Routing (Task 8.2)', () => {
   });
 
   it('subscribeRoomState calls onRoomStateChange with roomId', async () => {
-    const { onRoomStateChange } = await import('../firebase.js');
+    const { onRoomStateChange } = await import('../../roomService.js');
     const { subscribeRoomState } = await import('../main.js');
 
     subscribeRoomState('ROOM123');
-
     expect(onRoomStateChange).toHaveBeenCalledWith('ROOM123', expect.any(Function));
   });
 
   it('WAITING state shows screen-waiting', async () => {
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
-
     subscribeRoomState('ROOM123');
-    __triggerStateChange('WAITING');
+    stateCallback('WAITING');
 
-    const waitingScreen = document.getElementById('screen-waiting');
-    expect(waitingScreen.style.display).toBe('block');
-    expect(waitingScreen.classList.contains('active')).toBe(true);
+    const screen = document.getElementById('screen-waiting');
+    expect(screen.style.display).toBe('block');
+    expect(screen.classList.contains('active')).toBe(true);
   });
 
   it('ASSIGN state shows screen-assign', async () => {
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
-
     subscribeRoomState('ROOM123');
-    __triggerStateChange('ASSIGN');
+    stateCallback('ASSIGN');
 
-    const assignScreen = document.getElementById('screen-assign');
-    expect(assignScreen.style.display).toBe('block');
-    expect(assignScreen.classList.contains('active')).toBe(true);
+    const screen = document.getElementById('screen-assign');
+    expect(screen.style.display).toBe('block');
+    expect(screen.classList.contains('active')).toBe(true);
   });
 
   it('SPEAK state shows screen-speak', async () => {
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
-
     subscribeRoomState('ROOM123');
-    __triggerStateChange('SPEAK');
+    stateCallback('SPEAK');
 
-    const speakScreen = document.getElementById('screen-speak');
-    expect(speakScreen.style.display).toBe('block');
-    expect(speakScreen.classList.contains('active')).toBe(true);
+    const screen = document.getElementById('screen-speak');
+    expect(screen.style.display).toBe('block');
+    expect(screen.classList.contains('active')).toBe(true);
   });
 
   it('VOTE state shows screen-vote', async () => {
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
-
     subscribeRoomState('ROOM123');
-    __triggerStateChange('VOTE');
+    stateCallback('VOTE');
 
-    const voteScreen = document.getElementById('screen-vote');
-    expect(voteScreen.style.display).toBe('block');
-    expect(voteScreen.classList.contains('active')).toBe(true);
+    const screen = document.getElementById('screen-vote');
+    expect(screen.style.display).toBe('block');
+    expect(screen.classList.contains('active')).toBe(true);
   });
 
   it('RESULT state shows screen-result', async () => {
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
-
     subscribeRoomState('ROOM123');
-    __triggerStateChange('RESULT');
+    stateCallback('RESULT');
 
-    const resultScreen = document.getElementById('screen-result');
-    expect(resultScreen.style.display).toBe('block');
-    expect(resultScreen.classList.contains('active')).toBe(true);
+    const screen = document.getElementById('screen-result');
+    expect(screen.style.display).toBe('block');
+    expect(screen.classList.contains('active')).toBe(true);
   });
 
   it('ENDED state shows alert and returns to home screen', async () => {
     const alertMock = vi.spyOn(window, 'alert').mockImplementation(() => {});
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
 
-    // Set session data
     sessionStorage.setItem('roomId', 'ROOM123');
     sessionStorage.setItem('playerId', 'player1');
     sessionStorage.setItem('playerName', 'Alice');
 
     subscribeRoomState('ROOM123');
-    __triggerStateChange('ENDED');
+    stateCallback('ENDED');
 
-    // Should show alert
     expect(alertMock).toHaveBeenCalledWith('主持人已離開房間');
 
-    // Should return to home screen
     const homeScreen = document.getElementById('screen-home');
     expect(homeScreen.style.display).toBe('block');
     expect(homeScreen.classList.contains('active')).toBe(true);
 
-    // Should clear session
     expect(sessionStorage.getItem('roomId')).toBeNull();
     expect(sessionStorage.getItem('playerId')).toBeNull();
     expect(sessionStorage.getItem('playerName')).toBeNull();
@@ -190,43 +195,36 @@ describe('State Machine Routing (Task 8.2)', () => {
 
   it('ENDED state unsubscribes from state listener', async () => {
     vi.spyOn(window, 'alert').mockImplementation(() => {});
-    const { onRoomStateChange, __triggerStateChange } = await import('../firebase.js');
+    const { onRoomStateChange } = await import('../../roomService.js');
     const { subscribeRoomState } = await import('../main.js');
 
     subscribeRoomState('ROOM123');
     const unsubscribe = onRoomStateChange.mock.results[onRoomStateChange.mock.results.length - 1].value;
 
-    __triggerStateChange('ENDED');
-
+    stateCallback('ENDED');
     expect(unsubscribe).toHaveBeenCalled();
   });
 
   it('null state does not change screen', async () => {
-    const { __triggerStateChange } = await import('../firebase.js');
     const { subscribeRoomState } = await import('../main.js');
-
     subscribeRoomState('ROOM123');
 
-    // Home screen is active initially
     const homeScreen = document.getElementById('screen-home');
     homeScreen.style.display = 'block';
     homeScreen.classList.add('active');
 
-    __triggerStateChange(null);
-
-    // Home screen should still be active (no change)
+    stateCallback(null);
     expect(homeScreen.style.display).toBe('block');
   });
 
   it('subscribing again unsubscribes previous listener', async () => {
-    const { onRoomStateChange } = await import('../firebase.js');
+    const { onRoomStateChange } = await import('../../roomService.js');
     const { subscribeRoomState } = await import('../main.js');
 
     subscribeRoomState('ROOM1');
     const firstUnsubscribe = onRoomStateChange.mock.results[onRoomStateChange.mock.results.length - 1].value;
 
     subscribeRoomState('ROOM2');
-
     expect(firstUnsubscribe).toHaveBeenCalled();
   });
 });
